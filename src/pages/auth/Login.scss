@@ -1,0 +1,79 @@
+
+.link{
+    padding: 10px;
+    a{
+        font-weight: bold;
+        text-decoration:none;
+    }
+}
+.login{
+    // height:100vh;
+    // a{
+    //     color:blue;
+    // }
+    .login-email{
+        width:100%;
+    }
+    .login-password{
+        width:100%;
+    }
+    .login-title{
+        font-size: 40px;
+        font-weight: 400;
+        font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+        margin: 0 0 20px 0
+    }
+    .login-tag{
+        font-size: 20px;
+        font-weight: 400;
+        font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+        margin: 10px 0;
+    }
+    .login-input{
+        width:100%;
+        font-size: 20px;
+        font-weight: 400;
+        font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+        height: 40px;
+        border-radius: 10px;
+        border: 1px solid #aaa;
+        outline: none;
+        padding: 10px;
+    }
+    .login-button{
+        border: none;
+        background-color: #333;
+        color: #fff;
+        height: 40px;
+        font-size: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); /* 阴影效果 */
+        transition: transform 0.2s ease-in-out; /* 添加鼠标悬停时的过渡效果 */
+    }
+    .login-button:hover {
+        transform: scale(1.05); /* 放大效果 */
+        box-shadow: 0px 8px 12px rgba(0, 0, 0, 0.2); /* 悬停时的阴影效果 */
+    }
+    .login-divider{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        .login-divider-line{
+            border: 1px solid #000;
+            height: 2px;
+            width:100%;
+            background-color: #000; 
+            margin: 0 5px 
+        }
+         .login-divider-text{
+            font-size: 16px;
+            font-weight: 400;
+            font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+    
+          };
+        
+    }
+}
+
+    
