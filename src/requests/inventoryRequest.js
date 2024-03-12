@@ -13,9 +13,18 @@ export const get_items = async(data)=>{
 }
 
 export const get_total_item = async()=>{
-    const res = await axios.get(`${BACKEND_URL}${APP}/get_total_item`, {
-        params: data
-    }, {'Content-Type': 'application/json'});
+    const res = await axios.get(`${BACKEND_URL}${APP}/get_total_item`, {'Content-Type': 'application/json'});
     return res.data;
 }
 
+export const get_status = async()=>{
+    const res = await axios.get(`${BACKEND_URL}${APP}/status`, {'Content-Type': 'application/json'});
+    return res.data;
+}
+
+export const update_item = async(data)=>{
+    console.log('data', data);
+    const {id, ...other} = data;
+    const res = await axios.patch(`${BACKEND_URL}${APP}/update_item/${id}`, other, {'Content-Type': 'application/json'});
+    return res.data;
+}

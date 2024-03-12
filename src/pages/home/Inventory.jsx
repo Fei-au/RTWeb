@@ -1,21 +1,226 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useContext } from "react";
 import HomeLayout from "./MyLayout";
 import { errorHandler } from "../../requests/errorHandler";
-import { get_items } from "../../requests/inventoryRequest";
-import { Table } from "antd";
+import { get_status, get_items, get_total_item, update_item } from "../../requests/inventoryRequest";
+import { Form, Input, InputNumber, Modal, Select, Table, Image, Button, message } from "antd";
 import { utcToLocalDateTimeString } from "../../utils/dateUtils";
+import TextArea from "antd/es/input/TextArea";
+import { valueToLabel } from "../../utils/formatUtil";
+import './inventory.scss';
+
+const EditableContext = React.createContext(null);
+const EditableRow = ({ index, ...props }) => {
+  const [form] = Form.useForm();
+  return (
+    <Form form={form} component={false}>
+      <EditableContext.Provider value={form}>
+        <tr {...props} />
+      </EditableContext.Provider>
+    </Form>
+  );
+};
+const EditableCell = ({
+  title,
+  editable,
+  children,
+  dataIndex,
+  record,
+  handleSave,
+  ...restProps
+}) => {
+  const [editing, setEditing] = useState(false);
+  const inputRef = useRef(null);
+  const form = useContext(EditableContext);
+  useEffect(() => {
+    if (editing) {
+      inputRef.current.focus();
+    }
+  }, [editing]);
+  const toggleEdit = () => {
+    setEditing(!editing);
+    form.setFieldsValue({
+      [dataIndex]: record[dataIndex],
+    });
+  };
+  const save = async () => {
+    try {
+      const values = await form.validateFields();
+      toggleEdit();
+      handleSave({
+        ...record,
+        ...values,
+      });
+    } catch (errInfo) {
+      console.log('Save failed:', errInfo);
+    }
+  };
+  let childNode = children;
+  if (editable) {
+    childNode = editing ? (
+      <Form.Item
+        style={{
+          margin: 0,
+        }}
+        name={dataIndex}
+        rules={[
+          {
+            required: true,
+            message: `${title} is required.`,
+          },
+        ]}
+      >
+        <InputNumber ref={inputRef} onPressEnter={save} onBlur={save} precision={0} min={1}/>
+      </Form.Item>
+    ) : (
+      <div
+        className="editable-cell-value-wrap"
+        style={{
+          paddingRight: 24,
+        }}
+        onClick={toggleEdit}
+      >
+        {children}
+      </div>
+    );
+  }
+  return <td {...restProps}>{childNode}</td>;
+};
+
 
 const subNav = [
-    {title: 'inventory'}
+  { title: 'inventory' }
 ];
 
-const columns = [
+function priceSort (a,b){
+  return b.msrp_price - a.msrp_price
+}
+
+const formItemLayout = {
+  labelCol: {
+    xs: { span: 24 },
+    sm: { span: 4 },
+  },
+  wrapperCol: {
+    xs: { span: 24 },
+    sm: { span: 20 },
+  },
+};
+
+const exportDefaultColumns = [
+  {
+    title: 'B0 Code',
+    width: 130,
+    dataIndex: 'b_code',
+    key: 'b_code',
+  },
+  {
+    title: 'Title',
+    width: 200,
+    dataIndex: 'title',
+    key: 'title',
+    ellipsis: true,
+  },
+  {
+    title: 'Description',
+    width: 200,
+    dataIndex: 'description',
+    key: 'description',
+    ellipsis: true,
+  },
+  {
+    title: 'MSRP',
+    dataIndex: 'msrp_price',
+    key: 'msrp_price',
+    width: 100,
+  },
+  {
+    title: 'Sequence',
+    width: 120,
+    dataIndex: 'sequence',
+    key: 'sequence',
+    editable: true,
+  },
+  {
+    title: '   Price',
+    dataIndex: 'bid_start_price',
+    key: 'bid_start_price',
+    width: 100,
+  },
+  {
+    title: 'Item No.',
+    dataIndex: 'item_number',
+    key: 'item_number',
+    width: 100,
+  },
+];
+
+const getStaffName = (staff)=>{
+  return staff?.user?.first_name + ' ' + staff?.user?.last_name
+}
+
+const Inventory = () => {
+
+  const [messageApi, contextHolder] = message.useMessage();
+  const [items, setItems] = useState([]);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [total, setTotal] = useState(0)
+  const [open, setOpen] = useState(false);
+  const [editInitValue, setEditInitValue] = useState({});
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [statusList, setStatusList] = useState([]);
+  const [form] = Form.useForm();
+
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportItems, setExportItems] = useState([]);
+
+  useEffect(() => {
+    const func = async () => {
+      try {
+        const pml = [
+          get_total_item(),
+          get_items({ page_number: pageNumber, page_size: pageSize }),
+          get_status(),
+        ];
+        const resList = await Promise.all(pml);
+        setTotal(resList[0])
+        setItems(resList[1].map(ele => {
+          return {
+            ...ele,
+            key: ele.id,
+          }
+        }))
+        setStatusList(resList[2].map(ele=>{return {label: ele.status, value: ele.id}}))
+      } catch (err) {
+        errorHandler(err);
+      }
+    }
+    func();
+  }, [])
+
+  const handleEditClick = (record, index) => {
+    console.log('record',record)
+    console.log('index',index)
+    setOpen(true);
+    setEditInitValue({origin_data: record, ...record, index, status_id: record.status.id})
+  }
+
+  const columns = [
     {
-        title: 'Image',
-        width: 100,
-        dataIndex: 'images',
-        key: 'images',
-        render: (images)=><img style={{width: '100%'}} src={images?.[0]?.full_image_url}/>
+      title: 'Image',
+      width: 100,
+      dataIndex: 'images',
+      key: 'images',
+      render: (images) => {return <Image.PreviewGroup
+        items={images.map(ele=>ele.full_image_url)}
+      >
+        <Image
+          width={'100%'}
+          src={images?.[0]?.full_image_url}
+        />
+      </Image.PreviewGroup>}
+      // render: (images) => <img style={{ width: '100%' }} src={images?.[0]?.full_image_url} />
     },
     {
       title: 'Item No.',
@@ -24,11 +229,11 @@ const columns = [
       key: 'item_number',
     },
     {
-        title: 'Title',
-        width: 200,
-        dataIndex: 'title',
-        key: 'title',
-        ellipsis: true,
+      title: 'Title',
+      width: 200,
+      dataIndex: 'title',
+      key: 'title',
+      ellipsis: true,
     },
     {
       title: 'B0 Code',
@@ -41,6 +246,7 @@ const columns = [
       dataIndex: 'msrp_price',
       key: 'msrp_price',
       width: 100,
+      sorter: (a, b) => a.msrp_price - b.msrp_price,
     },
     {
       title: 'Bid Price',
@@ -53,6 +259,7 @@ const columns = [
       dataIndex: 'status',
       key: 'status',
       width: 100,
+      render: (status)=><span>{status.status}</span>
     },
     {
       title: 'Status Note',
@@ -66,6 +273,7 @@ const columns = [
       dataIndex: 'add_staff',
       key: 'add_staff',
       width: 100,
+      render: (stf)=><span>{getStaffName(stf)}</span>
     },
     {
       title: 'Location',
@@ -78,71 +286,274 @@ const columns = [
       dataIndex: 'add_date',
       key: 'add_date',
       width: 150,
+      render: (ad)=><span>{utcToLocalDateTimeString(ad)}</span>,
+      sorter: (a, b) => new Date(a.add_date) - new Date(b.add_date),
     },
     // {
     //   title: 'Last Modified',
     //   dataIndex: 'last_modified',
     //   key: 'last_modified',
     //   width: 150,
+        // redner:(lm)=> utcToLocalDateTimeString(lm),
     // },
     {
       title: 'Action',
       key: 'operation',
       fixed: 'right',
       width: 100,
-      render: () => <a>Edit</a>,
+      render: (text, record, index) => <a onClick={() => { handleEditClick(record, index) }}>Edit</a>,
     },
   ];
-
-const Inventory = ()=>{
-
-    const [items, setItems] = useState([]);
-    const [pageNumber, setPageNumber] = useState(1);
-    const [pageSize, setPageSize] = useState(50);
-    const [selectedRowKeys, setSelectedRowKeys] = useState([]);
-    const [total, setTotal] = useState(0)
-    const onSelectChange = (newSelectedRowKeys) => {
-        console.log('selectedRowKeys changed: ', newSelectedRowKeys);
-        setSelectedRowKeys(newSelectedRowKeys);
-      };
     
-      const rowSelection = {
-        selectedRowKeys,
-        onChange: onSelectChange,
-      };
-    useEffect(()=>{
-        const func = async ()=>{
-            try{
-                const total = await get_total_item();
-                const data = await get_items({page_number: pageNumber, page_size: pageSize});
-                setTotal(total)
-                setItems(data.map(ele=>{return {
-                    ...ele,
-                    key: ele.id,
-                    add_date: utcToLocalDateTimeString(ele.add_date),
-                    last_modified: utcToLocalDateTimeString(ele.last_modified),
-                    status: ele.status.status,
-                    add_staff: ele?.add_staff?.user?.first_name + ' ' + ele?.add_staff?.user?.last_name
-                }}))
-            }catch(err){
-                errorHandler(err);
-            }
-        }
-        func();
-    }, [])
 
-    return (
-        <HomeLayout subItems={subNav}>
-            <Table
-                rowSelection={rowSelection}
-                columns={columns}
-                dataSource={items}
-                pagination={{current: pageNumber,  pageSize:pageSize}}
-                scroll={{y: '70vh'}}
-                total={total}
+  const handleOk = async (fm) => {
+    setConfirmLoading(true);
+    try{
+      const {status_id, ...resFm} = fm;
+      await update_item({...resFm, id: editInitValue.id, status_id: parseInt(status_id)});
+      messageApi.success('Update item success!')
+      setOpen(false);
+      const tempItems = items.slice();
+      const {origin_data, index, ...res} = editInitValue;
+      const statusObj = {
+        id: status_id,
+        status: valueToLabel(status_id, statusList)
+      }
+      tempItems[index] = {
+        ...origin_data,
+        ...resFm,
+        status: statusObj,
+        msrp_price: parseFloat(resFm.msrp_price).toFixed(2),
+        bid_start_price: parseFloat(resFm.bid_start_price).toFixed(2),
+      }
+      setItems(tempItems);
+      setEditInitValue({});
+    }catch(err){
+      errorHandler(err);
+    }finally{
+      setConfirmLoading(false);
+    }
+  }
+
+  const handleExport = ()=>{
+    console.log('export')
+    setExportOpen(true)
+    let ei = items.filter((ele, index)=>selectedRowKeys.indexOf(index) !== -1).sort(priceSort);
+    ei = ei.map((ele, index)=>{return {...ele, sequence: index+2}})
+    setExportItems(ei)
+  }
+
+  const startExport = ()=>{
+    console.log('data', exportItems)
+  }
+
+  const handleSave = (row) => {
+    const newData = [...exportItems];
+    const index = newData.findIndex((item) => row.key === item.key);
+    const item = newData[index];
+    newData.splice(index, 1, {
+      ...item,
+      ...row,
+    });
+    setExportItems(newData);
+  };
+
+  const components = {
+    body: {
+      row: EditableRow,
+      cell: EditableCell,
+    },
+  };
+
+  const exportColumns = exportDefaultColumns.map((col) => {
+    if (!col.editable) {
+      return col;
+    }
+    return {
+      ...col,
+      onCell: (record) => ({
+        record,
+        editable: col.editable,
+        dataIndex: col.dataIndex,
+        title: col.title,
+        handleSave,
+      }),
+    };
+  });
+
+  const onSelectChange = (newSelectedRowKeys) => {
+    console.log('selectedRowKeys changed: ', newSelectedRowKeys);
+    setSelectedRowKeys(newSelectedRowKeys);
+  };
+
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: onSelectChange,
+  };
+
+
+  return (
+    <HomeLayout subItems={subNav}>
+      {contextHolder}
+      <div className="flex justify-end m-4">
+        <Button onClick={handleExport} type="primary">
+          Export
+        </Button>
+      </div>
+      <Table
+        rowSelection={rowSelection}
+        columns={columns}
+        dataSource={items}
+        pagination={{ current: pageNumber, pageSize: pageSize }}
+        scroll={{ y: '65vh' }}
+        total={total}
+      />
+      <Modal
+        title="Edit item"
+        open={open}
+        onOk={form.submit}
+        confirmLoading={confirmLoading}
+        width={800}
+        onCancel={()=>{setOpen(false); form.resetFields()}}
+      >
+        <Form
+          form={form}
+          {...formItemLayout}
+          // variant="filled"
+          style={{
+            maxWidth: 800,
+          }}
+          onFinish={handleOk}
+          initialValues={editInitValue}
+          preserve={false} 
+        >
+          <Form.Item
+            label="Item No."
+            name="item_number"
+            // rules={[
+            //   {
+            //     required: true,
+            //     message: 'Please input!',
+            //   },
+            // ]}
+          >
+            <Input disabled/>
+          </Form.Item>
+          <Form.Item
+            label="Title"
+            name="title"
+            rules={[
+              {
+                required: true,
+                message: 'Please input title!',
+              },
+            ]}
+          >
+            <Input.TextArea />
+          </Form.Item>
+          <Form.Item
+            label="Description"
+            name="description"
+            rules={[
+              {
+                required: true,
+                message: 'Please input Description!',
+              },
+            ]}
+          >
+            <Input.TextArea />
+          </Form.Item>
+          <Form.Item
+            label="B0 Code"
+            name="b_code"
+          >
+            <Input disabled />
+          </Form.Item>
+          <Form.Item
+            label="MSRP"
+            name="msrp_price"
+            rules={[
+              {
+                required: true,
+                message: 'Please input MSRP!',
+              },
+            ]}
+          >
+            <InputNumber 
+              precision={2}
+              min={0}
+              style={{ width: 100 }}
             />
-        </HomeLayout>
-    );
+          </Form.Item>
+          <Form.Item
+            label="Bid Price"
+            name="bid_start_price"
+            rules={[
+              {
+                required: true,
+                message: 'Please input Bid Price!',
+              },
+            ]}
+          >
+            <InputNumber 
+              // formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              precision={2}
+              min={0}
+              style={{ width: 100 }}
+            />
+          </Form.Item>
+          <Form.Item
+            label="Status"
+            name="status_id"
+            rules={[
+              {
+                required: true,
+                message: 'Please select status!',
+              },
+            ]}
+          >
+            <Select options={statusList}/>
+          </Form.Item>
+          <Form.Item
+            label="Status Note"
+            name="status_note"
+            rules={[
+              {
+                message: 'Please select status note!',
+              },
+            ]}
+          >
+            <TextArea />
+          </Form.Item>
+          <Form.Item
+            label="Location"
+            name="location"
+          >
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        title="Export Preview"
+        open={exportOpen}
+        onOk={startExport}
+        okText='Start Export'
+        onCancel={()=>setExportOpen(false)}
+        width={1200}
+        className="custom-modal-style"
+      >
+        <Table
+          components={components}
+          rowClassName={() => 'editable-row'}
+          bordered
+          columns={exportColumns}
+          dataSource={exportItems}
+          scroll={{ y: 750 }}
+          pagination={{ pageSize: 1000 }}
+        />
+      </Modal>
+    </HomeLayout>
+  );
 
 }
 
