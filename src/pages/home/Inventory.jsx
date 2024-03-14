@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef, useContext } from "react";
 import HomeLayout from "./MyLayout";
 import { errorHandler } from "../../requests/errorHandler";
-import { get_status, get_items, get_total_item, update_item } from "../../requests/inventoryRequest";
-import { Form, Input, InputNumber, Modal, Select, Table, Image, Button, message } from "antd";
+import { get_status, get_items, get_total_item, update_item, export_items } from "../../requests/inventoryRequest";
+import { Form, Input, InputNumber, Modal, Select, Table, Image, Button, message, Spin, Space } from "antd";
 import { utcToLocalDateTimeString } from "../../utils/dateUtils";
 import TextArea from "antd/es/input/TextArea";
 import { valueToLabel } from "../../utils/formatUtil";
@@ -44,7 +44,9 @@ const EditableCell = ({
   };
   const save = async () => {
     try {
+      setSpinning(true);
       const values = await form.validateFields();
+      setSpinning(false);
       toggleEdit();
       handleSave({
         ...record,
@@ -52,6 +54,8 @@ const EditableCell = ({
       });
     } catch (errInfo) {
       console.log('Save failed:', errInfo);
+    }finally{
+      setSpinning(false);
     }
   };
   let childNode = children;
@@ -119,6 +123,7 @@ const exportDefaultColumns = [
     dataIndex: 'title',
     key: 'title',
     ellipsis: true,
+    render: (tit)=><span title={tit} style={{overflow: 'hidden', textOverflow: 'ellipsis'}}>{tit}</span>
   },
   {
     title: 'Description',
@@ -126,6 +131,7 @@ const exportDefaultColumns = [
     dataIndex: 'description',
     key: 'description',
     ellipsis: true,
+    render: (des)=><span title={des} style={{overflow: 'hidden', textOverflow: 'ellipsis'}}>{des}</span>
   },
   {
     title: 'MSRP',
@@ -147,9 +153,9 @@ const exportDefaultColumns = [
     width: 100,
   },
   {
-    title: 'Item No.',
-    dataIndex: 'item_number',
-    key: 'item_number',
+    title: 'Lot Number',
+    dataIndex: 'lot_number',
+    key: 'lot_number',
     width: 100,
   },
 ];
@@ -161,6 +167,7 @@ const getStaffName = (staff)=>{
 const Inventory = () => {
 
   const [messageApi, contextHolder] = message.useMessage();
+  const [spinning, setSpinning] = useState(false);
   const [items, setItems] = useState([]);
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(50);
@@ -171,6 +178,7 @@ const Inventory = () => {
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [statusList, setStatusList] = useState([]);
   const [form] = Form.useForm();
+  const [auction, setAuction] = useState(1)
 
   const [exportOpen, setExportOpen] = useState(false);
   const [exportItems, setExportItems] = useState([]);
@@ -180,11 +188,14 @@ const Inventory = () => {
       try {
         const pml = [
           get_total_item(),
-          get_items({ page_number: pageNumber, page_size: pageSize }),
+          get_items({ page_number: pageNumber, page_size: 2000 }),
           get_status(),
         ];
+        setSpinning(true);
         const resList = await Promise.all(pml);
+        setSpinning(false);
         setTotal(resList[0])
+        console.log('totla', resList[0])
         setItems(resList[1].map(ele => {
           return {
             ...ele,
@@ -194,6 +205,8 @@ const Inventory = () => {
         setStatusList(resList[2].map(ele=>{return {label: ele.status, value: ele.id}}))
       } catch (err) {
         errorHandler(err);
+      }finally{
+        setSpinning(false);
       }
     }
     func();
@@ -259,7 +272,7 @@ const Inventory = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (status)=><span>{status.status}</span>
+      render: (status)=>status.status
     },
     {
       title: 'Status Note',
@@ -273,7 +286,7 @@ const Inventory = () => {
       dataIndex: 'add_staff',
       key: 'add_staff',
       width: 100,
-      render: (stf)=><span>{getStaffName(stf)}</span>
+      render: (stf)=>getStaffName(stf)
     },
     {
       title: 'Location',
@@ -286,7 +299,7 @@ const Inventory = () => {
       dataIndex: 'add_date',
       key: 'add_date',
       width: 150,
-      render: (ad)=><span>{utcToLocalDateTimeString(ad)}</span>,
+      render: (ad)=>utcToLocalDateTimeString(ad),
       sorter: (a, b) => new Date(a.add_date) - new Date(b.add_date),
     },
     // {
@@ -307,9 +320,9 @@ const Inventory = () => {
     
 
   const handleOk = async (fm) => {
-    setConfirmLoading(true);
     try{
       const {status_id, ...resFm} = fm;
+      setConfirmLoading(true);
       await update_item({...resFm, id: editInitValue.id, status_id: parseInt(status_id)});
       messageApi.success('Update item success!')
       setOpen(false);
@@ -339,12 +352,47 @@ const Inventory = () => {
     console.log('export')
     setExportOpen(true)
     let ei = items.filter((ele, index)=>selectedRowKeys.indexOf(index) !== -1).sort(priceSort);
-    ei = ei.map((ele, index)=>{return {...ele, sequence: index+2}})
+    ei = ei.map((ele, index)=>{return {
+      ...ele,
+      sequence: index+2,
+      description: ele.location + '-' + ele.item_number + ' ' + ele.description + '. MSRP $' + ele.msrp_price + '.',
+      lot_number: index+1,
+    }})
     setExportItems(ei)
   }
 
-  const startExport = ()=>{
-    console.log('data', exportItems)
+  const startExport = async ()=>{
+    try{
+      setSpinning(true);
+      const data = exportItems.map(ele=>{
+        return {
+            id: ele.id,
+            sequence: ele.sequence,
+            description: ele.description,
+            lot_number: ele.lot_number,
+        }
+      });
+      const csvFile = await export_items({data, auction});
+       // Create a URL for the blob
+      const fileURL = window.URL.createObjectURL(new Blob([csvFile]));
+      // Create a temp <a> element to download the file
+      const fileLink = document.createElement('a');
+      fileLink.href = fileURL;
+      console.log('fileUrl', fileURL)
+      // Set the file name in the download attribute
+      fileLink.setAttribute('download', `Auction-${auction}.zip`); // Specify the file name here
+      // Append to the document and trigger the download
+      document.body.appendChild(fileLink);
+      fileLink.click();
+      // Clean up
+      document.body.removeChild(fileLink); // Remove the link from the document
+      window.URL.revokeObjectURL(fileURL); // Release the object URL
+      setSpinning(false);
+    }catch(err){
+      errorHandler(err);
+    }finally{
+      setSpinning(false)
+    }
   }
 
   const handleSave = (row) => {
@@ -395,6 +443,7 @@ const Inventory = () => {
   return (
     <HomeLayout subItems={subNav}>
       {contextHolder}
+      <Spin spinning={spinning} fullscreen={true}/>
       <div className="flex justify-end m-4">
         <Button onClick={handleExport} type="primary">
           Export
@@ -404,9 +453,8 @@ const Inventory = () => {
         rowSelection={rowSelection}
         columns={columns}
         dataSource={items}
-        pagination={{ current: pageNumber, pageSize: pageSize }}
+        pagination={{ current: pageNumber, pageSize: pageSize, total: total }}
         scroll={{ y: '65vh' }}
-        total={total}
       />
       <Modal
         title="Edit item"
@@ -548,9 +596,13 @@ const Inventory = () => {
           bordered
           columns={exportColumns}
           dataSource={exportItems}
-          scroll={{ y: 750 }}
+          scroll={{ y: 700 }}
           pagination={{ pageSize: 1000 }}
         />
+        <Space>
+          <span>Auction Number</span>
+          <InputNumber min={1} value={auction} onChange={setAuction}/>
+        </Space>
       </Modal>
     </HomeLayout>
   );

@@ -28,3 +28,8 @@ export const update_item = async(data)=>{
     const res = await axios.patch(`${BACKEND_URL}${APP}/update_item/${id}`, other, {'Content-Type': 'application/json'});
     return res.data;
 }
+
+export const export_items = async(data)=>{
+    const res = await axios.post(`${BACKEND_URL}${APP}/export_items`, data, {'Content-Type': 'application/json', responseType: 'blob'});
+    return res.data;
+}
