@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useContext } from "react";
 import HomeLayout from "./MyLayout";
 import { errorHandler } from "../../requests/errorHandler";
-import { get_status, get_items, get_total_item, update_item, export_items } from "../../requests/inventoryRequest";
+import { get_status, get_items, get_total_item, update_item, export_items, get_available_sequences, get_next_lot_number } from "../../requests/inventoryRequest";
 import { Form, Input, InputNumber, Modal, Select, Table, Image, Button, message, Spin, Space } from "antd";
 import { utcToLocalDateTimeString } from "../../utils/dateUtils";
 import TextArea from "antd/es/input/TextArea";
@@ -179,7 +179,9 @@ const Inventory = () => {
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [statusList, setStatusList] = useState([]);
   const [form] = Form.useForm();
-  const [auction, setAuction] = useState(1)
+  const [auction, setAuction] = useState(null)
+  const [avaliableSqsRange, setAvailableSqsRange] = useState([]);
+  const [avaliableSqsList, setAvailableSqsList] = useState([]);
 
   const [exportOpen, setExportOpen] = useState(false);
   const [exportItems, setExportItems] = useState([]);
@@ -213,9 +215,54 @@ const Inventory = () => {
     func();
   }, [])
 
+  const getAuctionDetail = async(num)=>{
+    try{
+      setAuction(num);
+      const pmlist = []
+      // get last lot number
+      pmlist.push(get_next_lot_number(num))
+      // get available sequences
+      pmlist.push(get_available_sequences(num))
+      setSpinning(true);
+
+      const resList = await Promise.all(pmlist)
+      setSpinning(false);
+      const {range, list} = resList[1]
+      setAvailableSqsRange(range);
+      setAvailableSqsList(list);
+      let i = 2;
+      let step = 1;
+      setExportItems(exportItems.map((ele, idx)=>{
+        if(list.length === 0 && idx < 10){
+          step = 3;
+        }else{
+          step = 1;
+        }
+        while(list.indexOf(i) !== -1){
+          i += step;
+        }
+        const res = {
+          ...ele,
+          lot_number: resList[0]++,
+          sequence: i
+        };
+        i+=step
+        return res
+      }))
+    }catch(err){
+      errorHandler(err);
+    }finally{
+      setSpinning(false)
+    }
+  }
+
+  useEffect(()=>{
+    if(exportOpen && auction){
+      getAuctionDetail(auction);
+    }
+  }, [exportOpen, auction])
+
   const handleEditClick = (record, index) => {
-    console.log('record',record)
-    console.log('index',index)
     setOpen(true);
     setEditInitValue({origin_data: record, ...record, index, status_id: record.status.id})
   }
@@ -351,15 +398,31 @@ const Inventory = () => {
 
   const handleExport = ()=>{
     console.log('export')
+    // set export preview items
     setExportOpen(true)
-    let ei = items.filter((ele, index)=>selectedRowKeys.indexOf(index) !== -1).sort(priceSort);
+    let ei = items.filter(ele=>selectedRowKeys.indexOf(ele.id) !== -1).sort(priceSort);
+    // combine descriptions, with last lot number
     ei = ei.map((ele, index)=>{return {
       ...ele,
-      sequence: index+2,
+      index: index,
+      // sequence: index+2,
       description: ele.location + '-' + ele.item_number + ' ' + ele.description + '. MSRP $' + ele.msrp_price + '.',
-      lot_number: index+1,
+      // lot_number: index+1,
     }})
     setExportItems(ei)
+    messageApi.info('Please input auction first to get available sequence numbers.');
+  }
+
+  const handleAuctionBlur = (e)=>{
+    setAuction(parseInt(e.target.value) || null)
+  }
+
+  const getAvailableSequences = ()=>{
+    let str = '  ';
+    avaliableSqsRange.forEach(ele => {
+      str += (ele[0] + ' - ' + ele[1] + ', ')
+    });
+    return (str.substring(0, str.length - 2))
   }
 
   const startExport = async ()=>{
@@ -389,6 +452,8 @@ const Inventory = () => {
       document.body.removeChild(fileLink); // Remove the link from the document
       window.URL.revokeObjectURL(fileURL); // Release the object URL
       setSpinning(false);
+      setExportOpen(false);
+      messageApi.success('Export success, please find zip file in browser downloads')
     }catch(err){
       errorHandler(err);
     }finally{
@@ -404,6 +469,23 @@ const Inventory = () => {
       ...item,
       ...row,
     });
+    let nextSqs = row.sequence;
+    let step = 1;
+    for(let i = index + 1; i < newData.length; i++){
+      if(avaliableSqsList.length === 0 && i < 10){
+        step = 3;
+      }else{
+        step = 1;
+      }
+      if(i === index + 1){
+        nextSqs += step
+      }
+      while(avaliableSqsList.indexOf(nextSqs) !== -1){
+        nextSqs += step
+      }
+      newData[i].sequence = nextSqs
+      nextSqs += step
+    }
     setExportItems(newData);
   };
 
@@ -430,8 +512,9 @@ const Inventory = () => {
     };
   });
 
-  const onSelectChange = (newSelectedRowKeys) => {
+  const onSelectChange = (newSelectedRowKeys, selectedRows) => {
     console.log('selectedRowKeys changed: ', newSelectedRowKeys);
+    console.log('selectedRows changed: ', selectedRows);
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
@@ -444,7 +527,7 @@ const Inventory = () => {
   return (
     <HomeLayout subItems={subNav}>
       {contextHolder}
-      <Spin spinning={spinning} fullscreen={true}/>
+      <Spin spinning={spinning} fullscreen={true} style={{ zIndex: 1050 }}/>
       <div className="flex justify-end m-4">
         <Button onClick={handleExport} type="primary">
           Export
@@ -454,6 +537,7 @@ const Inventory = () => {
         rowSelection={rowSelection}
         columns={columns}
         dataSource={items}
+        rowKey={record=>record.id} // product list table use item id as key
         pagination={{ current: pageNumber, pageSize: pageSize, total: total }}
         scroll={{ y: '65vh' }}
       />
@@ -586,24 +670,28 @@ const Inventory = () => {
         title="Export Preview"
         open={exportOpen}
         onOk={startExport}
+        okButtonProps={{disabled: !auction}}
         okText='Start Export'
         onCancel={()=>setExportOpen(false)}
         width={1200}
         className="custom-modal-style"
       >
+        <Space>
+          <span>Auction Number</span>
+          <InputNumber min={0} value={auction} onBlur={(e)=>handleAuctionBlur(e)}/>
+          <span>Available Sequence: {getAvailableSequences()}</span>
+        </Space>
+        <div style={{height: '10px'}}/>
         <Table
           components={components}
           rowClassName={() => 'editable-row'}
+          rowKey={record=>record.index} // preview table use index as key
           bordered
           columns={exportColumns}
           dataSource={exportItems}
           scroll={{ y: 700 }}
           pagination={{ pageSize: 1000 }}
         />
-        <Space>
-          <span>Auction Number</span>
-          <InputNumber min={1} value={auction} onChange={setAuction}/>
-        </Space>
       </Modal>
     </HomeLayout>
   );

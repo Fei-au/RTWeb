@@ -33,3 +33,18 @@ export const export_items = async(data)=>{
     const res = await axios.post(`${BACKEND_URL}${APP}/export_items`, data, {'Content-Type': 'application/json', responseType: 'blob'});
     return res.data;
 }
+
+export const get_next_lot_number = async(auction_number)=>{
+    const res = await axios.get(`${BACKEND_URL}${APP}/get_next_lot_number/${auction_number}`, {'Content-Type': 'application/json'});
+    return res.data;
+}
+
+export const get_available_sequences = async(auction_number)=>{
+    const res = await axios.get(`${BACKEND_URL}${APP}/get_available_sequences/${auction_number}`, {'Content-Type': 'application/json'});
+    return res.data;
+}
+
+
+
+
+
