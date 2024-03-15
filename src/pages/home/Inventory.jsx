@@ -31,6 +31,7 @@ const EditableCell = ({
   const [editing, setEditing] = useState(false);
   const inputRef = useRef(null);
   const form = useContext(EditableContext);
+  // const [spinning, setSpinning] = useState(false);
   useEffect(() => {
     if (editing) {
       inputRef.current.focus();
@@ -44,9 +45,9 @@ const EditableCell = ({
   };
   const save = async () => {
     try {
-      setSpinning(true);
+      // setSpinning(true);
       const values = await form.validateFields();
-      setSpinning(false);
+      // setSpinning(false);
       toggleEdit();
       handleSave({
         ...record,
@@ -55,7 +56,7 @@ const EditableCell = ({
     } catch (errInfo) {
       console.log('Save failed:', errInfo);
     }finally{
-      setSpinning(false);
+      // setSpinning(false);
     }
   };
   let childNode = children;
