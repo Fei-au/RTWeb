@@ -148,15 +148,15 @@ const exportDefaultColumns = [
     editable: true,
   },
   {
-    title: '   Price',
+    title: 'Price',
     dataIndex: 'bid_start_price',
     key: 'bid_start_price',
     width: 100,
   },
   {
-    title: 'Lot Number',
-    dataIndex: 'lot_number',
-    key: 'lot_number',
+    title: 'Item Number',
+    dataIndex: 'item_number',
+    key: 'item_number',
     width: 100,
   },
 ];
@@ -243,7 +243,7 @@ const Inventory = () => {
         }
         const res = {
           ...ele,
-          lot_number: resList[0]++,
+          image_number: resList[0]++,
           sequence: i
         };
         i+=step
@@ -406,8 +406,8 @@ const Inventory = () => {
       ...ele,
       index: index,
       // sequence: index+2,
-      description: ele.location + '-' + ele.item_number + ' ' + ele.description + '. MSRP $' + ele.msrp_price + '.',
-      // lot_number: index+1,
+      description: ele.location + '-' + ele.item_number + ' ' + ele.status.status + (ele.status_note ? (' ' + ele.status_note) : '') + '. ' + ele.description + '. MSRP $' + ele.msrp_price + '.',
+      // image_number: index+1,
     }})
     setExportItems(ei)
     messageApi.info('Please input auction first to get available sequence numbers.');
@@ -433,7 +433,7 @@ const Inventory = () => {
             id: ele.id,
             sequence: ele.sequence,
             description: ele.description,
-            lot_number: ele.lot_number,
+            image_number: ele.item_number,
         }
       });
       const csvFile = await export_items({data, auction});
