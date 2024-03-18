@@ -141,7 +141,7 @@ const exportDefaultColumns = [
     width: 100,
   },
   {
-    title: 'Sequence',
+    title: 'Lot',
     width: 120,
     dataIndex: 'sequence',
     key: 'sequence',
