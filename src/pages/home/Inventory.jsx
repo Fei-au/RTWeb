@@ -538,7 +538,7 @@ const Inventory = () => {
         columns={columns}
         dataSource={items}
         rowKey={record=>record.id} // product list table use item id as key
-        pagination={{ current: pageNumber, pageSize: pageSize, total: total }}
+        // pagination={{ current: pageNumber, pageSize: pageSize, total: total }}
         scroll={{ y: '65vh' }}
       />
       <Modal
