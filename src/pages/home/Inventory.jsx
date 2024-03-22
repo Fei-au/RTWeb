@@ -264,7 +264,7 @@ const Inventory = () => {
 
   const handleEditClick = (record, index) => {
     setOpen(true);
-    setEditInitValue({origin_data: record, ...record, index, status_id: record.status.id})
+    setEditInitValue({origin_data: record, ...record, index})
   }
 
   const columns = [
@@ -320,7 +320,7 @@ const Inventory = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (status)=>status.status
+      render: (status)=>valueToLabel(status, statusList)
     },
     {
       title: 'Status Note',
@@ -331,8 +331,8 @@ const Inventory = () => {
     },
     {
       title: 'Add Staff',
-      dataIndex: 'add_staff',
-      key: 'add_staff',
+      dataIndex: 'add_staff_profile',
+      key: 'add_staff_profile',
       width: 100,
       render: (stf)=>getStaffName(stf)
     },
@@ -366,24 +366,19 @@ const Inventory = () => {
     },
   ];
     
-
+  // confirm update an item
   const handleOk = async (fm) => {
     try{
-      const {status_id, ...resFm} = fm;
+      const {...resFm} = fm;
       setConfirmLoading(true);
-      await update_item({...resFm, id: editInitValue.id, status_id: parseInt(status_id)});
+      await update_item({...resFm, id: editInitValue.id});
       messageApi.success('Update item success!')
       setOpen(false);
       const tempItems = items.slice();
-      const {origin_data, index, ...res} = editInitValue;
-      const statusObj = {
-        id: status_id,
-        status: valueToLabel(status_id, statusList)
-      }
+      const {origin_data, index} = editInitValue;
       tempItems[index] = {
         ...origin_data,
         ...resFm,
-        status: statusObj,
         msrp_price: parseFloat(resFm.msrp_price).toFixed(2),
         bid_start_price: parseFloat(resFm.bid_start_price).toFixed(2),
       }
@@ -396,27 +391,27 @@ const Inventory = () => {
     }
   }
 
+  // set export preview items
   const handleExport = ()=>{
     console.log('export')
-    // set export preview items
     setExportOpen(true)
     let ei = items.filter(ele=>selectedRowKeys.indexOf(ele.id) !== -1).sort(priceSort);
     // combine descriptions, with last lot number
     ei = ei.map((ele, index)=>{return {
       ...ele,
       index: index,
-      // sequence: index+2,
-      description: ele.location + '-' + ele.item_number + ' ' + ele.status.status + (ele.status_note ? (' ' + ele.status_note) : '') + '. ' + ele.description + '. MSRP $' + ele.msrp_price + '.',
-      // image_number: index+1,
+      description: ele.location + '-' + ele.item_number + ' ' + valueToLabel(ele.status, statusList) + (ele.status_note ? (' ' + ele.status_note) : '') + '. ' + ele.description + '. MSRP $' + ele.msrp_price + '.',
     }})
     setExportItems(ei)
     messageApi.info('Please input auction first to get available sequence numbers.');
   }
 
+  // blur auction field
   const handleAuctionBlur = (e)=>{
     setAuction(parseInt(e.target.value) || null)
   }
 
+  // available lot numbers
   const getAvailableSequences = ()=>{
     let str = '  ';
     avaliableSqsRange.forEach(ele => {
@@ -425,15 +420,16 @@ const Inventory = () => {
     return (str.substring(0, str.length - 2))
   }
 
+  // start export, output a zip file including csv and item images
   const startExport = async ()=>{
     try{
       setSpinning(true);
       const data = exportItems.map(ele=>{
         return {
             id: ele.id,
-            sequence: ele.sequence,
+            sequence: ele.sequence, // lot
             description: ele.description,
-            image_number: ele.item_number,
+            image_number: ele.item_number, // image number
         }
       });
       const csvFile = await export_items({data, auction});
@@ -461,6 +457,7 @@ const Inventory = () => {
     }
   }
 
+  // handle lot number input field save
   const handleSave = (row) => {
     const newData = [...exportItems];
     const index = newData.findIndex((item) => row.key === item.key);
@@ -637,7 +634,7 @@ const Inventory = () => {
           </Form.Item>
           <Form.Item
             label="Status"
-            name="status_id"
+            name="status"
             rules={[
               {
                 required: true,
