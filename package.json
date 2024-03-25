@@ -7,6 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "produrl": "cross-env NODE_ENV=production webpack serve --config ./config/webpack.dev.js",
     "dev": "cross-env NODE_ENV=development webpack serve --config ./config/webpack.dev.js",
+    "hmdev": "cross-env NODE_ENV=test webpack serve --config ./config/webpack.dev.js",
     "prod": "cross-env NODE_ENV=production webpack --config ./config/webpack.prod.js",
     "start": "npm run produrl",
     "build": "npm run prod"
