@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AreaChartOutlined, DatabaseOutlined, LaptopOutlined, NotificationOutlined, UserOutlined } from '@ant-design/icons';
+import { AreaChartOutlined, DatabaseOutlined, DollarOutlined, LaptopOutlined, NotificationOutlined, UserOutlined } from '@ant-design/icons';
 import { Breadcrumb, Layout, Menu, theme } from 'antd';
 import { useNavigate } from 'react-router-dom';
 const { Content, Sider } = Layout;
@@ -14,6 +14,11 @@ const items2 = [
     key: `dashboard`,
     icon: (<AreaChartOutlined />),
     label: `Dashboard`,
+  },
+  {
+    key: `sell`,
+    icon: (<DollarOutlined />),
+    label: `Sell`,  
   },
 ]
 

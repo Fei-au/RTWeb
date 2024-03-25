@@ -5,6 +5,7 @@ import LoginPage from './auth/Login'
 import StoredUserContext from '../context/StoredUserContext';
 import Inventory from './home/Inventory';
 import Dashboard from './home/Dashboard';
+import Sell from './home/Sell';
 
 let u = null;
 try{
@@ -26,6 +27,7 @@ function App() {
             <Route path="/home" element={<Inventory setGlobalUser={setUser}/>}/>
             <Route path="/inventory" element={<Inventory setGlobalUser={setUser}/>}/>
             <Route path="/dashboard" element={<Dashboard setGlobalUser={setUser}/>}/>
+            <Route path="/sell" element={<Sell setGlobalUser={setUser}/>}/>
           </Routes>
         </StoredUserContext.Provider>
       </Router>
