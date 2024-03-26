@@ -11,9 +11,12 @@ function Sell (props){
 
     const [links, setLinks] = useState([]);
 
-    const handleAddNewLink = (link)=>{
+    const handleAddNewLink = (link, name)=>{
         const tempLinks = links.slice()
-        tempLinks.push(link);
+        tempLinks.push({
+            link: link,
+            name: name,
+        });
         setLinks(tempLinks);
     }
     return (
@@ -21,12 +24,11 @@ function Sell (props){
             <div>
                 <h3>Sold products uploader</h3>
                 <Uploader addNewLink={handleAddNewLink}/>
-
                 <Divider/>
                 <Space direction='vertical'>
                     {
                         links.map(ele=>{
-                            return <a target='_blank'>{ele}</a>
+                            return <a target='_blank' herf={ele.link}>Click to download {ele.name}</a>
                         })
                     }
                 </Space>
