@@ -28,7 +28,7 @@ function Sell (props){
                 <Space direction='vertical'>
                     {
                         links.map(ele=>{
-                            return <a target='_blank' herf={ele.link}>Click to download {ele.name} output.</a>
+                            return <a target='_blank' href={ele.link}>Click to download {ele.name} output.</a>
                         })
                     }
                 </Space>
