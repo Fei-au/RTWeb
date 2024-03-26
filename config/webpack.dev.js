@@ -2,19 +2,19 @@ const EslintWebpackPlugin = require('eslint-webpack-plugin');
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
-
-const webpack = require('webpack');
 const dotenv = require('dotenv');
-const env = process.env.NODE_ENV; // 'development' 或 'production'
-const envFilePath = env === 'production' ? '.env.production' : '.env.development';
+const webpack = require('webpack');
+const env = process.env.REACT_ENV; // 'development' 或 'production'
+const envFilePath = `./.env.${env}`;
 const envVars = dotenv.config({ path: envFilePath }).parsed;
 const envKeys = Object.keys(envVars).reduce((prev, next) => {
     prev[`process.env.${next}`] = JSON.stringify(envVars[next]);
     return prev;
 }, {});
 
-const isDevelopment = process.env.NODE_ENV !== 'production';
-
+const isDevelopment = process.env.REACT_ENV !== 'production';
+host = envVars['TEST_HOST']
+console.log('host', host)
 
 // return deal with style func
 const getStyleLoaders = (pre)=>{
@@ -124,7 +124,7 @@ module.exports = {
         extensions: ['.jsx', '.js', '.json'],
     },
     devServer: {
-        host: '192.168.2.144',
+        host: host,
         port: 3001,
         open: true,
         hot: true, // enable HMR

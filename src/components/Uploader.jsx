@@ -13,7 +13,7 @@ function Uploader (props){
 
   const {addNewLink} = props;
 
-  handleOnChange = (info)=>{
+  const handleOnChange = (info)=>{
     if (info.file.status !== 'uploading') {
       console.log(info.file, info.fileList);
     }
@@ -23,10 +23,10 @@ function Uploader (props){
     } else if (info.file.status === 'error') {
       message.error(`${info.file.name} file upload failed.`);
     }
-  },
+  }
   
 
-  <Dragger
+  return <Dragger
     name='file'
     action={upload_url}
     onChange={handleOnChange}

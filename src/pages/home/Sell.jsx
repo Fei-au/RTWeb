@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import HomeLayout from './MyLayout';
 import Uploader from '../../components/Uploader';
-import { Divider } from 'antd';
+import { Divider, Space } from 'antd';
 
 const subNav = [
     {title: 'Sell'}
@@ -9,10 +9,10 @@ const subNav = [
 
 function Sell (props){
 
-    const {links, setLinks} = useState([]);
+    const [links, setLinks] = useState([]);
 
-    handleAddNewLink = (link)=>{
-        tempLinks = links.slice()
+    const handleAddNewLink = (link)=>{
+        const tempLinks = links.slice()
         tempLinks.push(link);
         setLinks(tempLinks);
     }
@@ -26,7 +26,7 @@ function Sell (props){
                 <Space direction='vertical'>
                     {
                         links.map(ele=>{
-                            return <p>{ele}</p>
+                            return <a>{ele}</a>
                         })
                     }
                 </Space>
